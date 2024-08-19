@@ -7,15 +7,16 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Data;
 
 namespace DBCD
 {
 
     public struct DBCDInfo
     {
-        internal string tableName;
-
-        internal string[] availableColumns;
+		public DataTable Data { get; set; }
+        public string tableName;
+        public string[] availableColumns;
     }
 
     internal class DBCDBuilder
@@ -77,11 +78,15 @@ namespace DBCD
             var columns = new List<string>(fields.Length);
             bool localiseStrings = locale != Locale.None;
 
+            // Console.WriteLine($"DBCDBuilder.Build name {name} fields {fields.Length}");
+
+            var info = new DBCDInfo();
+			info.Data = new DataTable() { TableName = name + "_" + DBCD.localeNames[(uint)locale], CaseSensitive = false};
+
             foreach (var fieldDefinition in fields)
             {
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
                 bool isLocalisedString = columnDefinition.type == "locstring" && locStringSize > 1;
-
 
                 Type fieldType;
                 if (fieldDefinition.isRelation && fieldDefinition.isNonInline)
@@ -90,16 +95,43 @@ namespace DBCD
                 }
                 else
                 {
-                    fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
+                    fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings, true);
                 }
 
                 var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
 
+                // Console.WriteLine($"DBCDBuilder.Build field {fieldDefinition.name} arrLength {fieldDefinition.arrLength} isID {fieldDefinition.isID}");
+
                 columns.Add(fieldDefinition.name);
+                if (columnDefinition.type == "locstring" || columnDefinition.type == "string")
+                {
+                    info.Data.Columns.Add(fieldDefinition.name, fieldType);
+                    info.Data.Columns[fieldDefinition.name].AllowDBNull = false;
+                    info.Data.Columns[fieldDefinition.name].DefaultValue = string.Empty;
+                }
+                else if (fieldDefinition.arrLength <= 1)
+                {
+                    info.Data.Columns.Add(fieldDefinition.name, fieldType);
+                    info.Data.Columns[fieldDefinition.name].DefaultValue = 0;
+                }
+                else
+                {
+                    for (var j = 0; j < fieldDefinition.arrLength; j++)
+                    {
+                        string fieldName = fieldDefinition.name + j;
+                        info.Data.Columns.Add(fieldName, FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings, false));
+                        info.Data.Columns[fieldName].DefaultValue = 0;
+                    }
+                }
 
                 if (fieldDefinition.isID)
                 {
                     AddAttribute<IndexAttribute>(field, fieldDefinition.isNonInline);
+                    //Setup the Primary Key
+                    info.Data.Columns[fieldDefinition.name].DefaultValue = null; //Clear default value
+                    info.Data.PrimaryKey = new DataColumn[] { info.Data.Columns[fieldDefinition.name] };
+                    info.Data.Columns[fieldDefinition.name].AutoIncrement = true;
+                    info.Data.Columns[fieldDefinition.name].Unique = true;
                 }
 
                 if (fieldDefinition.arrLength > 1)
@@ -109,7 +141,7 @@ namespace DBCD
 
                 if (fieldDefinition.isRelation)
                 {
-                    var metaDataFieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
+                    var metaDataFieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings, true);
                     AddAttribute<RelationAttribute>(field, metaDataFieldType, fieldDefinition.isNonInline);
                 }
 
@@ -125,17 +157,18 @@ namespace DBCD
                         // add locstring mask field
                         typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
                         columns.Add(fieldDefinition.name + "_mask");
+
+                        info.Data.Columns.Add(fieldDefinition.name + "_mask", typeof(uint)); //Last column is a mask
+                        info.Data.Columns[fieldDefinition.name + "_mask"].AllowDBNull = false;
+                        info.Data.Columns[fieldDefinition.name + "_mask"].DefaultValue = 0;
                     }
                 }
             }
 
             var type = typeBuilder.CreateTypeInfo();
 
-            var info = new DBCDInfo
-            {
-                availableColumns = columns.ToArray(),
-                tableName = name
-            };
+            info.availableColumns = columns.ToArray();
+            info.tableName = name;
 
             return new Tuple<Type, DBCDInfo>(type, info);
         }
@@ -162,9 +195,9 @@ namespace DBCD
             field.SetCustomAttribute(attributeBuilder);
         }
 
-        private Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column, bool localiseStrings)
+        private Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column, bool localiseStrings, bool useArray)
         {
-            var isArray = field.arrLength != 0;
+            var isArray = field.arrLength != 0 && useArray;
 
             switch (column.type)
             {

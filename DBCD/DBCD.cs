@@ -4,9 +4,9 @@ using System;
 
 namespace DBCD
 {
-
     public class DBCD
     {
+        public static string[] localeNames = new[] { "enUS","koKR","frFR","deDE","zhCN","zhTW","esES","esMX","ruRU","none","ptBR","itIT" };
         private readonly IDBCProvider dbcProvider;
         private readonly IDBDProvider dbdProvider;
         public DBCD(IDBCProvider dbcProvider, IDBDProvider dbdProvider)
@@ -15,8 +15,9 @@ namespace DBCD
             this.dbdProvider = dbdProvider;
         }
 
-        public IDBCDStorage Load(string tableName, string build = null, Locale locale = Locale.None)
+        public IDBCDStorage Load(string tableName, Locale locale = Locale.None)
         {
+            string build = null;
             var dbcStream = this.dbcProvider.StreamForTableName(tableName, build);
             var dbdStream = this.dbdProvider.StreamForTableName(tableName, build);
 
@@ -36,7 +37,6 @@ namespace DBCD
 
     public enum Locale
     {
-        None = -1,
         EnUS = 0,
         EnGB = EnUS,
         KoKR = 1,
@@ -50,8 +50,10 @@ namespace DBCD
         EsMX = 7,
         /* Available from TBC 2.1.0.6692 */
         RuRU = 8,
+        None = 9,
         PtPT = 10,
         PtBR = PtPT,
         ItIT = 11,
+        MAX_LOCALES
     }
 }
