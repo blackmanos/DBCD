@@ -10,6 +10,8 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Data;
+using static DBDefsLib.Structs;
 
 namespace DBCD
 {
@@ -108,6 +110,7 @@ namespace DBCD
     {
         string[] AvailableColumns { get; }
         DataTable Data { get; }
+        Definition[] fields { get; }
 
         DBCDRow ConstructRow(int index);
 
@@ -132,6 +135,7 @@ namespace DBCD
         string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
         public override string ToString() => $"{this.info.tableName}";
         DataTable IDBCDStorage.Data => this.info.Data;
+        Definition[] IDBCDStorage.fields => this.info.fields;
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBParser(stream), info) { }
 

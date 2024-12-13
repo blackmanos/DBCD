@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Data;
+using static DBDefsLib.Structs;
 
 namespace DBCD
 {
@@ -17,6 +18,7 @@ namespace DBCD
 		public DataTable Data { get; set; }
         public string tableName;
         public string[] availableColumns;
+        public Definition[] fields { get; set; }
     }
 
     internal class DBCDBuilder
@@ -74,16 +76,16 @@ namespace DBCD
 
             var typeBuilder = moduleBuilder.DefineType(name, TypeAttributes.Public);
 
-            var fields = versionDefinition.Value.definitions;
-            var columns = new List<string>(fields.Length);
-            bool localiseStrings = locale != Locale.None;
-
-            // Console.WriteLine($"DBCDBuilder.Build name {name} fields {fields.Length}");
-
             var info = new DBCDInfo();
 			info.Data = new DataTable() { TableName = name + "_" + DBCD.localeNames[(uint)locale], CaseSensitive = false};
+            info.fields = versionDefinition.Value.definitions;
 
-            foreach (var fieldDefinition in fields)
+            var columns = new List<string>(info.fields.Length);
+            bool localiseStrings = locale != Locale.None;
+
+            Console.WriteLine($"DBCDBuilder.Build name {name} fields {info.fields.Length} LayoutHash {dbcReader.LayoutHash.ToString("X8")}");
+
+            foreach (var fieldDefinition in info.fields)
             {
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
                 bool isLocalisedString = columnDefinition.type == "locstring" && locStringSize > 1;
@@ -100,27 +102,35 @@ namespace DBCD
 
                 var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
 
-                // Console.WriteLine($"DBCDBuilder.Build field {fieldDefinition.name} arrLength {fieldDefinition.arrLength} isID {fieldDefinition.isID}");
+                // Console.WriteLine($"DBCDBuilder.Build field {fieldDefinition.name} arrLength {fieldDefinition.arrLength} isID {fieldDefinition.isID} locStringSize {locStringSize}");
 
                 columns.Add(fieldDefinition.name);
-                if (columnDefinition.type == "locstring" || columnDefinition.type == "string")
+                if (fieldDefinition.arrLength <= 1)
                 {
                     info.Data.Columns.Add(fieldDefinition.name, fieldType);
-                    info.Data.Columns[fieldDefinition.name].AllowDBNull = false;
-                    info.Data.Columns[fieldDefinition.name].DefaultValue = string.Empty;
-                }
-                else if (fieldDefinition.arrLength <= 1)
-                {
-                    info.Data.Columns.Add(fieldDefinition.name, fieldType);
-                    info.Data.Columns[fieldDefinition.name].DefaultValue = 0;
+                    if (columnDefinition.type == "locstring" || columnDefinition.type == "string")
+                    {
+                        info.Data.Columns[fieldDefinition.name].AllowDBNull = false;
+                        info.Data.Columns[fieldDefinition.name].DefaultValue = string.Empty;
+                    }
+                    else
+                        info.Data.Columns[fieldDefinition.name].DefaultValue = 0;
                 }
                 else
                 {
                     for (var j = 0; j < fieldDefinition.arrLength; j++)
                     {
-                        string fieldName = fieldDefinition.name + j;
+                        string fieldName = fieldDefinition.name + (j + 1);
                         info.Data.Columns.Add(fieldName, FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings, false));
-                        info.Data.Columns[fieldName].DefaultValue = 0;
+                        // Console.WriteLine($"DBCDBuilder.Build field {fieldDefinition.name} arrLength {fieldDefinition.arrLength} fieldName {fieldName}");
+
+                        if (columnDefinition.type == "locstring" || columnDefinition.type == "string")
+                        {
+                            info.Data.Columns[fieldName].AllowDBNull = false;
+                            info.Data.Columns[fieldName].DefaultValue = string.Empty;
+                        }
+                        else
+                            info.Data.Columns[fieldName].DefaultValue = 0;
                     }
                 }
 
