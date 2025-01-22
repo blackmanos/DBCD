@@ -34,6 +34,11 @@ namespace DBCD
             return fieldAccessor.TryGetMember(this.raw, binder.Name, out result);
         }
 
+        public bool TryGetMember(string Name, out object result)
+        {
+            return fieldAccessor.TryGetMember(this.raw, Name, out result);
+        }
+
         public override bool TrySetMember(SetMemberBinder binder, object value)
         {
             return fieldAccessor.TrySetMember(this.raw, binder.Name, value);
@@ -210,17 +215,19 @@ namespace DBCD
                 Array rowRecords = Array.CreateInstance(arrayField.FieldType.GetElementType(), count);
                 for (var i = 0; i < count; i++)
                 {
-                    rowRecords.SetValue(Activator.CreateInstance(arrayField.FieldType.GetElementType()), i);
+                    if (arrayField.FieldType.ToString() == "System.String")
+                        rowRecords.SetValue(string.Empty, i);
+                    else
+                        rowRecords.SetValue(Activator.CreateInstance(arrayField.FieldType.GetElementType()), i);
                 }
                 arrayField.SetValue(raw, rowRecords);
             }
 
-            // String Fields need to be initialized to empty string rather than null;
-            var stringFields = fields.Where(x => x.FieldType == typeof(string));
-            foreach (var stringField in stringFields)
-            {
-                stringField.SetValue(raw, string.Empty);
-            }
+            // For default value on string field
+            foreach (var field in fields)
+                if (field.FieldType.ToString() == "System.String")
+                    field.SetValue(raw, string.Empty);
+
             return new DBCDRow(index, raw, fieldAccessor);
         }
 
