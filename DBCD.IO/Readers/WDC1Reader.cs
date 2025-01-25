@@ -335,7 +335,7 @@ namespace DBCD.IO.Readers
                         for (int j = 0; j < ColumnMeta[i].AdditionalDataSize / 8; j++)
                             commonValues[reader.ReadInt32()] = reader.Read<Value32>();
                     }
-                    Console.WriteLine($"WDC1Reader 3 RecordOffset {ColumnMeta[i].RecordOffset} Size {ColumnMeta[i].Size} AdditionalDataSize {ColumnMeta[i].AdditionalDataSize} CompressionType {ColumnMeta[i].CompressionType}");
+                    Console.WriteLine($"WDC1Reader 3 RecordOffset {ColumnMeta[i].RecordOffset} Size {ColumnMeta[i].Size} AdditionalDataSize {ColumnMeta[i].AdditionalDataSize} CompressionType {ColumnMeta[i].CompressionType} ColumnMeta.Length {ColumnMeta.Length}");
                 }
 
                 // reference data

@@ -339,7 +339,39 @@ namespace DBCD.IO.Writers
                 pos = writer.BaseStream.Position;
 
                 // column meta data
-                writer.WriteArray(ColumnMeta);
+                // writer.WriteArray(ColumnMeta);
+                for (int i = 0; i < ColumnMeta.Length; i++)
+                {
+                    writer.Write(ColumnMeta[i].RecordOffset);
+                    writer.Write(ColumnMeta[i].Size);
+                    writer.Write(ColumnMeta[i].AdditionalDataSize);
+                    writer.Write(ColumnMeta[i].CompressionType);
+                    switch (ColumnMeta[i].CompressionType)
+                    {
+                        case CompressionType.Immediate:
+                        case CompressionType.SignedImmediate:
+                            writer.Write(ColumnMeta[i].Immediate.BitOffset);
+                            writer.Write(ColumnMeta[i].Immediate.BitWidth);
+                            writer.Write(ColumnMeta[i].Immediate.Flags);
+                            break;
+                        case CompressionType.Pallet:
+                        case CompressionType.PalletArray:
+                            writer.Write(ColumnMeta[i].Pallet.BitOffset);
+                            writer.Write(ColumnMeta[i].Pallet.BitWidth);
+                            writer.Write(ColumnMeta[i].Pallet.Cardinality);
+                            break;
+                        case CompressionType.Common:
+                            writer.Write(ColumnMeta[i].Common.DefaultValue);
+                            writer.Write(ColumnMeta[i].Common.B);
+                            writer.Write(ColumnMeta[i].Common.C);
+                            break;
+                        default:
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                            break;
+                    }
+                }
 
                 var ColumnMeta2 = writer.BaseStream.Position - pos;
                 pos = writer.BaseStream.Position;
@@ -390,7 +422,7 @@ namespace DBCD.IO.Writers
 
                 var RelationshipDataSize2 = writer.BaseStream.Position - pos;
 
-                Console.WriteLine($"WDC1Writer 3 RecordSize2 {RecordSize2} StringBlockSize2 {StringBlockSize2} OffsetTableOffset2 {OffsetTableOffset2} IndexSize2 {IndexSize2} CopyTableSize2 {CopyTableSize2} ColumnMeta2 {ColumnMeta2} PalletDataSize2 {PalletDataSize2} SparseDataSize2 {SparseDataSize2} RelationshipDataSize2 {RelationshipDataSize2}");
+                Console.WriteLine($"WDC1Writer 3 RecordSize2 {RecordSize2} StringBlockSize2 {StringBlockSize2} OffsetTableOffset2 {OffsetTableOffset2} IndexSize2 {IndexSize2} CopyTableSize2 {CopyTableSize2} ColumnMeta2 {ColumnMeta2} PalletDataSize2 {PalletDataSize2} SparseDataSize2 {SparseDataSize2} RelationshipDataSize2 {RelationshipDataSize2} ColumnMeta.Length {ColumnMeta.Length}");
             }
         }
 
