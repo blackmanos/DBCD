@@ -31,7 +31,7 @@ namespace DBCD.IO.Writers
         public Dictionary<int, Value32>[] CommonData { get; protected set; }
         public Dictionary<string, int> StringTable { get; protected set; }
         public SortedDictionary<int, int> CopyData { get; protected set; }
-        public List<int> ReferenceData { get; protected set; }
+        public ReferenceData ReferenceData { get; protected set; }
         #endregion
 
         public BaseWriter(BaseReader reader)
@@ -52,7 +52,7 @@ namespace DBCD.IO.Writers
             {
                 CommonData = new Dictionary<int, Value32>[ColumnMeta.Length];
                 PalletData = new OrderedHashSet<Value32[]>[ColumnMeta.Length];
-                ReferenceData = new List<int>();
+                ReferenceData = new ReferenceData();
                 // create the lookup collections
                 for (int i = 0; i < ColumnMeta.Length; i++)
                 {
@@ -126,6 +126,9 @@ namespace DBCD.IO.Writers
 
         public void HandleCompression(IDictionary<int, T> storage)
         {
+            return;
+            // Console.WriteLine($"HandleCompression 0 PackedDataOffset {PackedDataOffset} RecordSize {RecordSize}");
+
             var externalCompressions = new HashSet<CompressionType>(new[] { CompressionType.None, CompressionType.Common });
             var valueComparer = new Value32Comparer();
             var indexFieldOffset = 0;
@@ -263,13 +266,12 @@ namespace DBCD.IO.Writers
                     ColumnMeta[fieldIndex].RecordOffset = (ushort)RecordSize;
                     RecordSize += ColumnMeta[fieldIndex].Size;
                 }
-
             }
 
             PackedDataOffset = Math.Max(0, PackedDataOffset);
 
             // TODO: Review how Blizzard handles this. This behavior matches a lot of the original DB2s, but not all. Maybe some math needs doing to make sure we're on 4 byte boundaries?
-            RecordSize = ((RecordSize + 8 - 1) / 8);
+            RecordSize = ((RecordSize + 8 - 1) / 8) + 1;
         }
 
         #endregion

@@ -56,26 +56,35 @@ namespace DBCD.IO.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // relationship field, used for faster lookup on IDs
-                if (info.IsNonInlineRelation)
+                if (info.IsRelation)
                 {
-                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                    var Index = m_writer.ReferenceData.Entries.Count;
+                    var dataId = (int)Convert.ChangeType(info.Getter(row), typeof(int));
+
+					if (!m_writer.ReferenceData.Entries.ContainsKey(Index))
+                    {
+                        if (m_writer.ReferenceData.MinId > dataId)
+                            m_writer.ReferenceData.MinId = dataId;
+                        if (m_writer.ReferenceData.MaxId < dataId)
+                            m_writer.ReferenceData.MaxId = dataId;
+						m_writer.ReferenceData.Entries.Add(Index, dataId);
+                    }
+                    m_writer.ReferenceData.NumRecords = m_writer.ReferenceData.Entries.Count;
+                }
+
+                if (info.IsArray)
+                {
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
+                    else
+                        throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (info.IsArray)
-                    {
-                        if (arrayWriters.TryGetValue(info.FieldType, out var writer))
-                            writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
-                        else
-                            throw new Exception("Unhandled array type: " + typeof(T).Name);
-                    }
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
                     else
-                    {
-                        if (simpleWriters.TryGetValue(info.FieldType, out var writer))
-                            writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
-                        else
-                            throw new Exception("Unhandled field type: " + typeof(T).Name);
-                    }
+                        throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
             }
 
@@ -231,7 +240,7 @@ namespace DBCD.IO.Writers
             serializer.Serialize(storage);
 
             // We write the copy rows if and only if it saves space and the table hasn't any reference rows.
-            if ((RecordSize) >= sizeof(int) * 2 && ReferenceData.Count == 0)
+            if ((RecordSize) >= sizeof(int) * 2 && ReferenceData.NumRecords == 0)
                 serializer.GetCopyRows();
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
@@ -259,12 +268,15 @@ namespace DBCD.IO.Writers
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
 
+                var lookupColumnCount = ReferenceData != null && ReferenceData.NumRecords > 0 ? 1 : 0;
+                var IndexDataSize = Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0;
+                var ColumnMetaDataSize = ColumnMeta != null && ColumnMeta.Length > 0 ? ColumnMeta.Length * 24 : 0;
                 writer.Write(FieldsCount); // totalFieldCount
                 writer.Write(PackedDataOffset);
-                writer.Write(ReferenceData != null && ReferenceData.Count > 0 ? 1 : 0);  // RelationshipColumnCount
+                writer.Write(lookupColumnCount);  // RelationshipColumnCount
                 writer.Write(0); // sparseTableOffset
-                writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
-                writer.Write(ColumnMeta != null && ColumnMeta.Length > 0 ? ColumnMeta.Length * 24 : 0); // ColumnMetaDataSize
+                writer.Write(IndexDataSize);  // IndexDataSize
+                writer.Write(ColumnMetaDataSize); // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
                 writer.Write(referenceDataSize);
@@ -348,16 +360,16 @@ namespace DBCD.IO.Writers
                 }
 
                 // reference data
-                if (ReferenceData.Count > 0)
+                if (ReferenceData.NumRecords > 0)
                 {
-                    writer.Write(ReferenceData.Count);
-                    writer.Write(ReferenceData.Min());
-                    writer.Write(ReferenceData.Max());
+                    writer.Write(ReferenceData.NumRecords);
+                    writer.Write(ReferenceData.MinId);
+                    writer.Write(ReferenceData.MaxId);
 
-                    for (int i = 0; i < ReferenceData.Count; i++)
+                    foreach (var relation in ReferenceData.Entries)
                     {
-                        writer.Write(ReferenceData[i]);
-                        writer.Write(i);
+                        writer.Write(relation.Value);
+                        writer.Write(relation.Key);
                     }
                 }
             }
@@ -367,8 +379,8 @@ namespace DBCD.IO.Writers
         {
             // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords]
             int refSize = 0;
-            if (ReferenceData.Count > 0)
-                refSize = 12 + (ReferenceData.Count * 8);
+            if (ReferenceData.NumRecords > 0)
+                refSize = 12 + (ReferenceData.NumRecords * 8);
 
             int commonSize = 0, palletSize = 0;
             for (int i = 0; i < ColumnMeta.Length; i++)
