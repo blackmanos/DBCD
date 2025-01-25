@@ -87,6 +87,7 @@ namespace DBCD.IO
 
         protected virtual void ReadRecords<T>(IDictionary<int, T> storage) where T : class, new()
         {
+            try{
             var fieldCache = (RecordType = typeof(T)).ToFieldCache<T>();
 
             _reader.Enumerate((row) =>
@@ -94,8 +95,16 @@ namespace DBCD.IO
                 T entry = new T();
                 row.GetFields(fieldCache, entry);
                 lock (storage)
+                {
+                    // File.AppendAllText("WDC1Reader.txt", $"ReadRecords row.Id {row.Id} entry {entry}\n");
                     storage.Add(row.Id, entry);
+                }
             });
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine($"ReadRecords error {e.Message}");
+            }
         }
 
         /// <summary>

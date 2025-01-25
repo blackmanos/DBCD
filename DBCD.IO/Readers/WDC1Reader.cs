@@ -227,6 +227,8 @@ namespace DBCD.IO.Readers
                 RecordSize = reader.ReadInt32();
                 StringTableSize = reader.ReadInt32();
 
+                Console.WriteLine($"WDC1Reader 0 RecordsCount {RecordsCount} FieldsCount {FieldsCount} RecordSize {RecordSize} StringTableSize {StringTableSize}");
+
                 TableHash = reader.ReadUInt32();
                 LayoutHash = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
@@ -235,6 +237,8 @@ namespace DBCD.IO.Readers
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();
+
+                Console.WriteLine($"WDC1Reader 1 TableHash {TableHash} LayoutHash {LayoutHash} MinIndex {MinIndex} MaxIndex {MaxIndex} Locale {Locale} copyTableSize {copyTableSize} Flags {Flags} IdFieldIndex {IdFieldIndex}");
 
                 int totalFieldsCount = reader.ReadInt32();
                 PackedDataOffset = reader.ReadInt32();          // Offset within the field where packed data starts
@@ -245,6 +249,8 @@ namespace DBCD.IO.Readers
                 int commonDataSize = reader.ReadInt32();
                 int palletDataSize = reader.ReadInt32();        // in bytes, sizeof(DBC2PalletValue) == 4
                 int referenceDataSize = reader.ReadInt32();     // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords], questionable usefulness...
+
+                Console.WriteLine($"WDC1Reader 2 totalFieldsCount {totalFieldsCount} PackedDataOffset {PackedDataOffset} lookupColumnCount {lookupColumnCount} sparseTableOffset {sparseTableOffset} indexDataSize {indexDataSize} columnMetaDataSize {columnMetaDataSize} commonDataSize {commonDataSize} palletDataSize {palletDataSize} referenceDataSize {referenceDataSize}");
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
@@ -329,6 +335,7 @@ namespace DBCD.IO.Readers
                         for (int j = 0; j < ColumnMeta[i].AdditionalDataSize / 8; j++)
                             commonValues[reader.ReadInt32()] = reader.Read<Value32>();
                     }
+                    Console.WriteLine($"WDC1Reader 3 RecordOffset {ColumnMeta[i].RecordOffset} Size {ColumnMeta[i].Size} AdditionalDataSize {ColumnMeta[i].AdditionalDataSize} CompressionType {ColumnMeta[i].CompressionType}");
                 }
 
                 // reference data
@@ -341,7 +348,10 @@ namespace DBCD.IO.Readers
 
                     var entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
                     for (int i = 0; i < entries.Length; i++)
+                    {
+                        // File.AppendAllText("WDC1Reader.txt", $"WDC1Reader ReferenceData keyExists {keyExists}  MinId {refData.MinId} MaxId {refData.MaxId} Index {entries[i].Index} i {i} Id {entries[i].Id}\n");
                         refData.Entries[entries[i].Index] = entries[i].Id;
+                    }
                 }
 
                 int position = 0;
@@ -362,6 +372,8 @@ namespace DBCD.IO.Readers
                     refData.Entries.TryGetValue(i, out int refId);
 
                     IDBRow rec = new WDC1Row(this, bitReader, indexDataSize != 0 ? IndexData[i] : -1, refId, i);
+
+                    // File.AppendAllText("WDC1Reader.txt", $"WDC1Reader WDC1Row i {i}  refId {refId} rec.Id {rec.Id}\n");
                     _Records.Add(i, rec);
                 }
             }
