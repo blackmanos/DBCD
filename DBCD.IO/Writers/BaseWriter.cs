@@ -170,17 +170,16 @@ namespace DBCD.IO.Writers
                 {
                     case CompressionType.SignedImmediate:
                         {
-                            var largestMSB = storage.Values.Count switch
+                            int maxValue = 0;
+                            foreach (var row in storage.Values)
                             {
-                                0 => 0,
-                                _ => storage.Values.AsParallel().Max(row =>
-                                {
-                                    var value32 = Value32.Create(info.Getter(row));
-                                    return value32.GetValue<int>().MostSignificantBit();
-                                }),
-                            };
+                                var value32 = Value32.Create(info.Getter(row));
+                                var value = value32.GetValue<int>();
 
-                            newCompressedSize = largestMSB + 1;
+                                if (value > maxValue)
+                                    maxValue = value;
+                            }
+                            newCompressedSize = maxValue.MostSignificantBit();
                             break;
                         }
                     case CompressionType.Immediate:
@@ -191,29 +190,28 @@ namespace DBCD.IO.Writers
                             {
                                 if ((meta.Immediate.Flags & 0x1) == 0x1)
                                 {
-                                    var largestMSB = storage.Values.Count switch
+                                    int maxValue = 0;
+                                    foreach (var row in storage.Values)
                                     {
-                                        0 => 0,
-                                        _ => storage.Values.AsParallel().Max(row =>
-                                        {
-                                            var value32 = Value32.Create(info.Getter(row));
-                                            return value32.GetValue<int>().MostSignificantBit();
-                                        }),
-                                    };
+                                        var value32 = Value32.Create(info.Getter(row));
+                                        var value = value32.GetValue<int>();
 
-                                    newCompressedSize = largestMSB + 1;
+                                        if (value > maxValue)
+                                            maxValue = value;
+                                    }
+                                    newCompressedSize = maxValue.MostSignificantBit();
                                 }
                                 else
                                 {
-                                    var maxValue = storage.Values.Count switch
+                                    uint maxValue = 0;
+                                    foreach (var row in storage.Values)
                                     {
-                                        0 => 0U,
-                                        _ => storage.Values.AsParallel().Max(row =>
-                                        {
-                                            var value32 = Value32.Create(info.Getter(row));
-                                            return value32.GetValue<uint>();
-                                        }),
-                                    };
+                                        var value32 = Value32.Create(info.Getter(row));
+                                        var value = value32.GetValue<uint>();
+
+                                        if (value > maxValue)
+                                            maxValue = value;
+                                    }
 
                                     newCompressedSize = maxValue.MostSignificantBit();
                                 }
@@ -222,24 +220,35 @@ namespace DBCD.IO.Writers
                         }
                     case CompressionType.Pallet:
                         {
-                            Parallel.ForEach(storage.Values, row => palletData.Add(new[] { Value32.Create(info.Getter(row)) }));
-                            var fieldMaxSize = palletData.AsParallel().Distinct(valueComparer).Count();
-                            newCompressedSize = fieldMaxSize.MostSignificantBit();
+                            int maxValue = 0;
+                            foreach (var row in storage.Values)
+                            {
+                                var value32 = Value32.Create(info.Getter(row));
+                                var value = value32.GetValue<int>();
+
+                                if (value > maxValue)
+                                    maxValue = value;
+                            }
+                            newCompressedSize = maxValue.MostSignificantBit();
                             break;
                         }
                     case CompressionType.PalletArray:
                         {
-                            Parallel.ForEach(storage.Values, row =>
+                            int maxValue = 0;
+                            foreach (var row in storage.Values)
                             {
                                 var baseArray = (Array)info.Getter(row);
-                                Value32[] array = new Value32[baseArray.Length];
-                                for (int i = 0; i < baseArray.Length; i++)
-                                    array[i] = Value32.Create(baseArray.GetValue(i));
-                                palletData.Add(array);
-                            });
+                                for (int j = 0; j < baseArray.Length; j++)
+                                {
+                                    var value32 = Value32.Create(baseArray.GetValue(j));
+                                    var value = value32.GetValue<int>();
 
-                            var fieldMaxSize = palletData.AsParallel().Distinct(valueComparer).Count();
-                            newCompressedSize = fieldMaxSize.MostSignificantBit();
+                                    if (value > maxValue)
+                                        maxValue = value;
+                                }
+                            }
+
+                            newCompressedSize = maxValue.MostSignificantBit();
                             break;
                         }
                     case CompressionType.Common:
@@ -253,6 +262,8 @@ namespace DBCD.IO.Writers
 
                 if (!externalCompressions.Contains(compressionType))
                 {
+                    // Console.WriteLine($"HandleCompression i {i} compressionType {compressionType} Size {ColumnMeta[fieldIndex].Size} newCompressedSize {newCompressedSize} RecordSize {RecordSize}");
+
                     ColumnMeta[fieldIndex].Immediate.BitWidth = ColumnMeta[fieldIndex].Size = (ushort)(newCompressedSize);
                     ColumnMeta[fieldIndex].Immediate.BitOffset = bitpackedOffset;
                     ColumnMeta[fieldIndex].RecordOffset = (ushort) RecordSize;
@@ -271,7 +282,7 @@ namespace DBCD.IO.Writers
             PackedDataOffset = Math.Max(0, PackedDataOffset);
 
             // TODO: Review how Blizzard handles this. This behavior matches a lot of the original DB2s, but not all. Maybe some math needs doing to make sure we're on 4 byte boundaries?
-            RecordSize = ((RecordSize + 8 - 1) / 8) + 1;
+            RecordSize = (int)Math.Ceiling(((float)RecordSize + 8.0 - 1.0) / 8.0);
         }
 
         #endregion

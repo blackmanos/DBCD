@@ -141,11 +141,14 @@ namespace DBCD.IO.Writers
                         if (bitSize <= 0)
                             bitSize = columnMeta.Immediate.BitWidth;
 
+                        // Console.WriteLine($"WriteFieldValue CompressionType.None Id {Id} bitSize {bitSize} value {value}");
+
                         r.Write((TType)value, bitSize);
                         break;
                     }
                 case CompressionType.Immediate:
                     {
+                        // Console.WriteLine($"WriteFieldValue CompressionType.Immediate Id {Id} BitWidth {columnMeta.Immediate.BitWidth} value {value}");
                         r.Write((TType)value, columnMeta.Immediate.BitWidth);
                         break;
                     }
@@ -255,9 +258,9 @@ namespace DBCD.IO.Writers
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
 
-                Console.WriteLine($"WDC1Writer 0 RecordsCount {RecordsCount} FieldsCount {FieldsCount} RecordSize {RecordSize} StringTableSize {StringTableSize}");
+                // Console.WriteLine($"WDC1Writer 0 RecordsCount {RecordsCount} FieldsCount {FieldsCount} RecordSize {RecordSize} StringTableSize {StringTableSize}");
 
-                Console.WriteLine($"WDC1Writer 1 TableHash {reader.TableHash} LayoutHash {reader.LayoutHash} MinIndex {minIndex} MaxIndex {maxIndex} Locale {reader.Locale} copyTableSize {copyTableSize} Flags {Flags} IdFieldIndex {IdFieldIndex}");
+                // Console.WriteLine($"WDC1Writer 1 TableHash {reader.TableHash} LayoutHash {reader.LayoutHash} MinIndex {minIndex} MaxIndex {maxIndex} Locale {reader.Locale} copyTableSize {copyTableSize} Flags {Flags} IdFieldIndex {IdFieldIndex}");
 
                 writer.Write(FieldsCount); // totalFieldCount
                 writer.Write(PackedDataOffset);
@@ -269,7 +272,7 @@ namespace DBCD.IO.Writers
                 writer.Write(palletDataSize);
                 writer.Write(referenceDataSize);
 
-                Console.WriteLine($"WDC1Writer 2 totalFieldsCount {FieldsCount} PackedDataOffset {PackedDataOffset} commonDataSize {commonDataSize} palletDataSize {palletDataSize} referenceDataSize {referenceDataSize}");
+                // Console.WriteLine($"WDC1Writer 2 totalFieldsCount {FieldsCount} PackedDataOffset {PackedDataOffset} commonDataSize {commonDataSize} palletDataSize {palletDataSize} referenceDataSize {referenceDataSize}");
 
                 // field meta
                 writer.WriteArray(Meta);
@@ -339,39 +342,9 @@ namespace DBCD.IO.Writers
                 pos = writer.BaseStream.Position;
 
                 // column meta data
-                // writer.WriteArray(ColumnMeta);
-                for (int i = 0; i < ColumnMeta.Length; i++)
-                {
-                    writer.Write(ColumnMeta[i].RecordOffset);
-                    writer.Write(ColumnMeta[i].Size);
-                    writer.Write(ColumnMeta[i].AdditionalDataSize);
-                    writer.Write(ColumnMeta[i].CompressionType);
-                    switch (ColumnMeta[i].CompressionType)
-                    {
-                        case CompressionType.Immediate:
-                        case CompressionType.SignedImmediate:
-                            writer.Write(ColumnMeta[i].Immediate.BitOffset);
-                            writer.Write(ColumnMeta[i].Immediate.BitWidth);
-                            writer.Write(ColumnMeta[i].Immediate.Flags);
-                            break;
-                        case CompressionType.Pallet:
-                        case CompressionType.PalletArray:
-                            writer.Write(ColumnMeta[i].Pallet.BitOffset);
-                            writer.Write(ColumnMeta[i].Pallet.BitWidth);
-                            writer.Write(ColumnMeta[i].Pallet.Cardinality);
-                            break;
-                        case CompressionType.Common:
-                            writer.Write(ColumnMeta[i].Common.DefaultValue);
-                            writer.Write(ColumnMeta[i].Common.B);
-                            writer.Write(ColumnMeta[i].Common.C);
-                            break;
-                        default:
-                            writer.Write((int)0);
-                            writer.Write((int)0);
-                            writer.Write((int)0);
-                            break;
-                    }
-                }
+                writer.WriteArray(ColumnMeta);
+                // for (int i = 0; i < ColumnMeta.Length; i++)
+                    // Console.WriteLine($"WDC1Writer 3 RecordOffset {ColumnMeta[i].RecordOffset} Size {ColumnMeta[i].Size} AdditionalDataSize {ColumnMeta[i].AdditionalDataSize} CompressionType {ColumnMeta[i].CompressionType} BitOffset {ColumnMeta[i].Immediate.BitOffset} BitWidth {ColumnMeta[i].Immediate.BitWidth} Flags {ColumnMeta[i].Immediate.Flags} Bits {Meta[i].Bits} Offset {Meta[i].Offset}");
 
                 var ColumnMeta2 = writer.BaseStream.Position - pos;
                 pos = writer.BaseStream.Position;
@@ -422,7 +395,7 @@ namespace DBCD.IO.Writers
 
                 var RelationshipDataSize2 = writer.BaseStream.Position - pos;
 
-                Console.WriteLine($"WDC1Writer 3 RecordSize2 {RecordSize2} StringBlockSize2 {StringBlockSize2} OffsetTableOffset2 {OffsetTableOffset2} IndexSize2 {IndexSize2} CopyTableSize2 {CopyTableSize2} ColumnMeta2 {ColumnMeta2} PalletDataSize2 {PalletDataSize2} SparseDataSize2 {SparseDataSize2} RelationshipDataSize2 {RelationshipDataSize2} ColumnMeta.Length {ColumnMeta.Length}");
+                // Console.WriteLine($"WDC1Writer 4 RecordSize2 {RecordSize2} StringBlockSize2 {StringBlockSize2} OffsetTableOffset2 {OffsetTableOffset2} IndexSize2 {IndexSize2} CopyTableSize2 {CopyTableSize2} ColumnMeta2 {ColumnMeta2} PalletDataSize2 {PalletDataSize2} SparseDataSize2 {SparseDataSize2} RelationshipDataSize2 {RelationshipDataSize2} ColumnMeta.Length {ColumnMeta.Length}");
             }
         }
 
