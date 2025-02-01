@@ -83,7 +83,7 @@ namespace DBCD
             var columns = new List<string>(info.fields.Length);
             bool localiseStrings = locale != Locale.None;
 
-            Console.WriteLine($"DBCDBuilder.Build name {name} fields {info.fields.Length} LayoutHash {dbcReader.LayoutHash.ToString("X8")}");
+            Console.WriteLine($"DBCDBuilder.Build name {name} fields {info.fields.Length} LayoutHash {dbcReader.LayoutHash.ToString("X8")} TableHash {dbcReader.TableHash}");
 
             foreach (var fieldDefinition in info.fields)
             {

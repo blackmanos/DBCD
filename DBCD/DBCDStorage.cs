@@ -128,6 +128,7 @@ namespace DBCD
         void Save(string filename);
 
         Dictionary<int, DBCDRow> ToDictionary();
+        DBParser GetParser();
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -190,6 +191,7 @@ namespace DBCD
 
         public Dictionary<ulong, int> GetEncryptedSections() => this.parser.GetEncryptedSections();
         public Dictionary<ulong, int[]> GetEncryptedIDs() => this.parser.GetEncryptedIDs();
+        public DBParser GetParser() => this.parser;
 
         public void Save(string filename)
         {
