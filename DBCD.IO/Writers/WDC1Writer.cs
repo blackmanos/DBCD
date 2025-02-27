@@ -55,6 +55,13 @@ namespace DBCD.IO.Writers
 
                 int fieldIndex = i - indexFieldOffSet;
 
+                // reference data field
+                if (fieldIndex >= m_writer.Meta.Length)
+                {
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                    continue;
+                }
+
                 // relationship field, used for faster lookup on IDs
                 if (info.IsRelation)
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
