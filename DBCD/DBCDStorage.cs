@@ -217,7 +217,7 @@ namespace DBCD
                 Array rowRecords = Array.CreateInstance(arrayField.FieldType.GetElementType(), count);
                 for (var i = 0; i < count; i++)
                 {
-                    if (arrayField.FieldType.ToString() == "System.String")
+                    if (arrayField.FieldType.ToString() == "System.String" || arrayField.FieldType.ToString() == "System.String[]")
                         rowRecords.SetValue(string.Empty, i);
                     else
                         rowRecords.SetValue(Activator.CreateInstance(arrayField.FieldType.GetElementType()), i);
