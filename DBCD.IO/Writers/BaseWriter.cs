@@ -173,11 +173,26 @@ namespace DBCD.IO.Writers
                             int maxValue = 0;
                             foreach (var row in storage.Values)
                             {
-                                var value32 = Value32.Create(info.Getter(row));
-                                var value = value32.GetValue<int>();
+                                if (info.IsArray)
+                                {
+                                    var arrValue = (Array)info.Getter(row);
+                                    for (int j = 0; j < arrValue.Length; j++)
+                                    {
+                                        var value32 = Value32.Create(arrValue.GetValue(j));
+                                        var value = value32.GetValue<int>();
 
-                                if (value > maxValue)
-                                    maxValue = value;
+                                        if (value > maxValue)
+                                            maxValue = value;
+                                    }
+                                }
+                                else
+                                {
+                                    var value32 = Value32.Create(info.Getter(row));
+                                    var value = value32.GetValue<int>();
+
+                                    if (value > maxValue)
+                                        maxValue = value;
+                                }
                             }
                             newCompressedSize = maxValue.MostSignificantBit();
                             break;
